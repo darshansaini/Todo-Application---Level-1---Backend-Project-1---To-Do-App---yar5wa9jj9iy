@@ -1,4 +1,4 @@
-const Users   = require("../models/user.js");
+const User   = require("../models/user.js");
 const jwt = require("jsonwebtoken");
 const bcrypt  = require('bcrypt');
 
@@ -58,9 +58,29 @@ json = {
 */
 
 const loginUser =async (req, res) => {
-
+      
     const email  = req.body.email;
     const password = req.body.password;
+    try{
+
+    const user = await User.findOne({ email });
+
+    if(!user){
+        return res.status(404).json({message:'User with this E-mail does not exist !!',status:'fail'});
+    }
+
+    const isPasswordValid=await bcrypt.compare(password,user.password);
+    if(!isPasswordValid){
+        return res.status(403).json({message: 'Invalid Password, try again !!', status: 'fail'});
+    }
+
+    // Generate JWT token
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1h' });
+
+    return res.status(200).json({ status: 'success', token:token });
+}catch(error){
+    return res.status(404).json({ message: 'Something went wrong', status: 'fail' });
+}
 
     //Write your code here.
 
@@ -107,7 +127,7 @@ json = {
 
 3. if something went wrong
 
-500 Status code with 
+404 Status code with 
 json = {
     "status": 'fail',
     "message": 'Something went wrong'
@@ -116,12 +136,32 @@ json = {
 */
 
 const signupUser = async (req, res) => {
-
+  try {
     const {email, password, name, role} = req.body;
+    
+
+  
+         const existingUser = await User.findOne({ email });
+         console.log(existingUser);
+
+         if(existingUser){
+            return res.status(409).json({ message: 'User with given Email allready register' , status: 'fail' });
+         }
+        
+         const hashedPassword=await bcrypt.hash(password,saltRounds);
+         console.log(hashedPassword)
+
+         const newUser=new User({name,email,password:hashedPassword,role});
+         await newUser.save();
+         console.log(newUser)
+         return res.status(200).json({ message: 'User SignedUp successfully', status: 'success' });
+        
+    } catch (error) {
+        return res.status(404).json({message:'Something went wrong', status:'fail',error});
+    }
 
      //Write your code here.
 
 }
 
 module.exports = { loginUser , signupUser };
-
